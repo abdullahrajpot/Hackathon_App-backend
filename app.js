@@ -135,17 +135,16 @@ app.post("/userdata", async (req, res) => {
 
 
 // add event
-  app.post("/add-event", async (req, res) => {
-    console.log("Add Event Route Hit");
+app.post("/add-event", async (req, res) => {
+    const { title, description, date, location, category } = req.body;
+    const token = req.headers['authorization']?.split(' ')[1];  // Get the token from 'Bearer <token>'
 
-    const { title, description, date, location, category, token } = req.body;
-
-    if (!title || !description || !date || !location || !category || !token) {
-        return res.status(400).send({ status: "error", message: "All fields are required" });
+    if (!token) {
+        return res.status(400).send({ status: "error", message: "Token is required" });
     }
 
     try {
-        const decodedUser = jwt.verify(token, JWT_SECRET);
+        const decodedUser = jwt.verify(token, JWT_SECRET);  // Verify token
         const userEmail = decodedUser.email;
 
         const user = await User.findOne({ email: userEmail });
@@ -162,35 +161,29 @@ app.post("/userdata", async (req, res) => {
             userId: user._id,  
             createdDate: Date.now(),
         });
+
         await newEvent.save();
-        console.log("Event added:", newEvent);
         res.send({ status: "ok", message: "Event added successfully", event: newEvent });
+
     } catch (error) {
         console.error("Error adding event:", error);
         res.status(500).send({ status: "error", message: "Failed to add event" });
     }
 });
 
-
-
-// get event
-app.get('/get-events', async (req, res) => {
-    const { token } = req.query;
-
+// Get events from the database
+app.get("/get-events", async (req, res) => {
     try {
-        const decodedUser = jwt.verify(token, JWT_SECRET);
-        const userEmail = decodedUser.email;
+        const events = await Item.find();  // Fetch all events from the 'Item' model (which represents events)
 
-        const user = await User.findOne({ email: userEmail });
-        if (!user) {
-            return res.status(400).send({ status: "error", message: "User not found" });
+        if (events.length > 0) {
+            return res.send({ status: "ok", items: events });
+        } else {
+            return res.send({ status: "ok", message: "No events found" });
         }
-
-        const userEvents = await Item.find({ userId: user._id });
-        res.send({ status: "ok", events: userEvents });
     } catch (error) {
-        console.error('Error fetching user events:', error);
-        res.status(500).send({ status: "error", message: "Failed to fetch user events" });
+        console.error("Error fetching events:", error);
+        return res.status(500).send({ status: "error", message: "Failed to fetch events" });
     }
 });
 
